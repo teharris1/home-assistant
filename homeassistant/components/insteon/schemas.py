@@ -2,6 +2,8 @@
 from __future__ import annotations
 
 from binascii import Error as HexError, unhexlify
+import re
+from typing import Union
 
 from pyinsteon.address import Address
 from pyinsteon.constants import HC_LOOKUP
@@ -62,6 +64,14 @@ def set_default_port(schema: dict) -> dict:
         # Found hub_version but not ip_port
         schema[CONF_IP_PORT] = PORT_HUB_V1 if hub_version == 1 else PORT_HUB_V2
     return schema
+
+
+def insteon_address(value: str) -> str:
+    """Validate an Insteon address."""
+    regex = re.compile(r"([A-Fa-f0-9]{2}\.?[A-Fa-f0-9]{2}\.?[A-Fa-f0-9]{2})$")
+    if not regex.match(value):
+        raise vol.Invalid("Invalid Insteon Address")
+    return str(value).replace(".", "").lower()
 
 
 CONF_DEVICE_OVERRIDE_SCHEMA = vol.All(
@@ -161,7 +171,21 @@ TRIGGER_SCENE_SCHEMA = vol.Schema(
 ADD_DEFAULT_LINKS_SCHEMA = vol.Schema({vol.Required(CONF_ENTITY_ID): cv.entity_id})
 
 
-def normalize_byte_entry_to_int(entry: [int, bytes, str]):
+ALDB_SCHEMA = vol.Schema(
+    {
+        vol.Required("in_use"): bool,
+        vol.Required("mode"): vol.In(["Controller", "Responder"]),
+        vol.Required("group"): int,
+        vol.Required("target"): str,
+        vol.Required("data1"): int,
+        vol.Required("data2"): int,
+        vol.Required("data3"): int,
+    },
+    extra=vol.ALLOW_EXTRA,
+)
+
+
+def normalize_byte_entry_to_int(entry: Union[int, bytes, str]):
     """Format a hex entry value."""
     if isinstance(entry, int):
         if entry in range(0, 256):
