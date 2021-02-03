@@ -2,6 +2,8 @@
 from __future__ import annotations
 
 from binascii import Error as HexError, unhexlify
+import re
+from typing import Union
 
 import voluptuous as vol
 
