@@ -171,6 +171,20 @@ TRIGGER_SCENE_SCHEMA = vol.Schema(
 ADD_DEFAULT_LINKS_SCHEMA = vol.Schema({vol.Required(CONF_ENTITY_ID): cv.entity_id})
 
 
+ALDB_SCHEMA = vol.Schema(
+    {
+        vol.Required("in_use"): bool,
+        vol.Required("mode"): vol.In(["Controller", "Responder"]),
+        vol.Required("group"): int,
+        vol.Required("target"): str,
+        vol.Required("data1"): int,
+        vol.Required("data2"): int,
+        vol.Required("data3"): int,
+    },
+    extra=vol.ALLOW_EXTRA,
+)
+
+
 def normalize_byte_entry_to_int(entry: Union[int, bytes, str]):
     """Format a hex entry value."""
     if isinstance(entry, int):
