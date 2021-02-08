@@ -171,17 +171,20 @@ TRIGGER_SCENE_SCHEMA = vol.Schema(
 ADD_DEFAULT_LINKS_SCHEMA = vol.Schema({vol.Required(CONF_ENTITY_ID): cv.entity_id})
 
 
-ALDB_SCHEMA = vol.Schema(
+ALDB_RECORD_SCHEMA = vol.Schema(
     {
+        vol.Required("mem_addr"): int,
         vol.Required("in_use"): bool,
-        vol.Required("mode"): vol.In(["Controller", "Responder"]),
-        vol.Required("group"): int,
+        vol.Required("group"): vol.Range(0, 255),
+        vol.Required("mode"): vol.In(["c", "C", "R", "r"]),
+        vol.Optional("highwater"): bool,
         vol.Required("target"): str,
-        vol.Required("data1"): int,
-        vol.Required("data2"): int,
-        vol.Required("data3"): int,
-    },
-    extra=vol.ALLOW_EXTRA,
+        vol.Optional("target_name"): str,
+        vol.Required("data1"): vol.Range(0, 255),
+        vol.Required("data2"): vol.Range(0, 255),
+        vol.Required("data3"): vol.Range(0, 255),
+        vol.Optional("dirty"): bool,
+    }
 )
 
 
