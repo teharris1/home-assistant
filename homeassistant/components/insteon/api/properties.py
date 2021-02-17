@@ -1,8 +1,13 @@
 """Property update methods and schemas."""
 from itertools import chain
 
+import voluptuous as vol
+import voluptuous_serialize
+
+from homeassistant.components import websocket_api
+import homeassistant.helpers.config_validation as cv
 from pyinsteon import devices
-from pyinsteon.constants import RAMP_RATES, ResponseStatus
+from pyinsteon.constants import RAMP_RATES
 from pyinsteon.device_types.device_base import Device
 from pyinsteon.extended_property import (
     NON_TOGGLE_MASK,
@@ -12,11 +17,6 @@ from pyinsteon.extended_property import (
     RAMP_RATE,
 )
 from pyinsteon.utils import ramp_rate_to_seconds, seconds_to_ramp_rate
-import voluptuous as vol
-import voluptuous_serialize
-
-from homeassistant.components import websocket_api
-import homeassistant.helpers.config_validation as cv
 
 from .device import DEVICE_ADDRESS, INSTEON_DEVICE_NOT_FOUND, notify_device_not_found
 
@@ -40,11 +40,24 @@ TOGGLE_MODES_SCHEMA = {
 
 
 def _bool_schema(name):
-    return voluptuous_serialize.convert(vol.Schema({vol.Required(name): bool}))[0]
+    return voluptuous_serialize.convert(
+        vol.Schema({vol.Required(name): bool}),
+        custom_serializer=cv.custom_serializer,
+    )[0]
 
 
 def _byte_schema(name):
-    return voluptuous_serialize.convert(vol.Schema({vol.Required(name): cv.byte}))[0]
+    return voluptuous_serialize.convert(
+        vol.Schema({vol.Required(name): vol.Range(min=0, max=255)}),
+        custom_serializer=cv.custom_serializer,
+    )[0]
+
+
+def _toggle_schema(name):
+    return voluptuous_serialize.convert(
+        vol.Schema({vol.Required(name): vol.In(TOGGLE_MODES_SCHEMA)}),
+        custom_serializer=cv.custom_serializer,
+    )[0]
 
 
 def _ramp_rate_schema(name):
@@ -103,21 +116,36 @@ def set_property(device, prop_name: str, value):
         device.properties[prop_name].new_value = seconds_to_ramp_rate(value)
 
     elif prop_name.startswith(RADIO_BUTTON_GROUP_PROP):
-        buttons = [int(button) for button in value]
-        rb_groups = _calc_radio_button_groups(device)
-        curr_group = int(prop_name[len(RADIO_BUTTON_GROUP_PROP) :])
-        if len(rb_groups) > curr_group:
-            removed = [btn for btn in rb_groups[curr_group] if btn not in buttons]
-            if removed:
-                device.clear_radio_buttons(removed)
-        if buttons:
-            device.set_radio_buttons(buttons)
+        group = []
+
+        existing_groups = _calc_radio_button_groups(device)
+        curr_group = int(prop_name[-1])
+        curr_buttons = (
+            existing_groups[curr_group] if len(existing_groups) > curr_group else []
+        )
+
+        # reset the definitions of any buttons in the current radio button group
+        for button in curr_buttons:
+            button_str = f"_{button}" if button != 1 else ""
+            on_name = f"{ON_MASK}{button_str}"
+            off_name = f"{OFF_MASK}{button_str}"
+            device.properties[on_name].new_value = 0
+            device.properties[off_name].new_value = 0
+
+        # Map button names to button numbers
+        buttons = {device.groups[button].name: button for button in device.groups}
+        for button_name in value:
+            group.append(buttons[button_name])
+
+        # A group must have more than one button
+        if len(group) > 1:
+            device.set_radio_buttons(group)
 
     elif prop_name.startswith(TOGGLE_PROP):
         button_name = prop_name[len(TOGGLE_PROP) :]
         for button in device.groups:
             if device.groups[button].name == button_name:
-                device.set_toggle_mode(button, int(value))
+                device.set_toggle_mode(button, TOGGLE_MODES[value])
 
     else:
         device.properties[prop_name].new_value = value
@@ -144,11 +172,7 @@ def _get_toggle_properties(device):
         name = f"{TOGGLE_PROP}{device.groups[button].name}"
         value, modified = _toggle_button_value(toggle_prop, toggle_on_prop, button)
         props.append({"name": name, "value": value, "modified": modified})
-        toggle_schema = vol.Schema({vol.Required(name): vol.In(TOGGLE_MODES_SCHEMA)})
-        toggle_schema_dict = voluptuous_serialize.convert(
-            toggle_schema, custom_serializer=cv.custom_serializer
-        )
-        schema[name] = toggle_schema_dict[0]
+        schema[name] = {"name": name, **_toggle_schema(name)}
     return props, schema
 
 
@@ -197,36 +221,33 @@ def _get_radio_button_properties(device):
 
     for rb_group in rb_groups:
         name = f"{RADIO_BUTTON_GROUP_PROP}{index}"
+        button_names = [device.groups[button].name for button in rb_group]
         button_1 = rb_group[0]
         button_str = f"_{button_1}" if button_1 != 1 else ""
         on_mask = device.properties[f"{ON_MASK}{button_str}"]
         off_mask = device.properties[f"{OFF_MASK}{button_str}"]
         modified = on_mask.is_dirty or off_mask.is_dirty
-
         props.append(
             {
                 "name": name,
                 "modified": modified,
-                "value": rb_group,
+                "value": button_names,
             }
         )
-
-        options = {
-            button: device.groups[button].name
-            for button in chain.from_iterable([rb_group, remaining_buttons])
+        selections = [
+            button for button in chain.from_iterable([rb_group, remaining_buttons])
+        ]
+        selections.sort()
+        schema[name] = {
+            "name": name,
+            "required": False,
+            "type": "multi_select",
+            "options": [device.groups[button].name for button in selections],
         }
-        rb_schema = vol.Schema({vol.Optional(name): cv.multi_select(options)})
-
-        rb_schema_dict = voluptuous_serialize.convert(
-            rb_schema, custom_serializer=cv.custom_serializer
-        )
-        schema[name] = rb_schema_dict[0]
-
         index += 1
 
     if len(remaining_buttons) > 1:
         name = f"{RADIO_BUTTON_GROUP_PROP}{index}"
-
         props.append(
             {
                 "name": name,
@@ -234,14 +255,12 @@ def _get_radio_button_properties(device):
                 "value": [],
             }
         )
-
-        options = {button: device.groups[button].name for button in remaining_buttons}
-        rb_schema = vol.Schema({vol.Optional(name): cv.multi_select(options)})
-
-        rb_schema_dict = voluptuous_serialize.convert(
-            rb_schema, custom_serializer=cv.custom_serializer
-        )
-        schema[name] = rb_schema_dict[0]
+        schema[name] = {
+            "name": name,
+            "required": False,
+            "type": "multi_select",
+            "options": [device.groups[button].name for button in remaining_buttons],
+        }
 
     return props, schema
 
@@ -332,16 +351,8 @@ async def websocket_write_properties(hass, connection, msg):
         notify_device_not_found(connection, msg, INSTEON_DEVICE_NOT_FOUND)
         return
 
-    result1 = await device.async_write_op_flags()
-    result2 = await device.async_write_ext_properties()
-    await devices.async_save(workdir=hass.config.config_dir)
-    if result1 != ResponseStatus.SUCCESS or result2 != ResponseStatus.SUCCESS:
-        connection.send_message(
-            websocket_api.error_message(
-                msg[ID], "write_failed", "properties not written to device"
-            )
-        )
-        return
+    await device.async_write_op_flags()
+    await device.async_write_ext_properties()
     connection.send_result(msg[ID])
 
 
@@ -360,16 +371,8 @@ async def websocket_load_properties(hass, connection, msg):
         notify_device_not_found(connection, msg, INSTEON_DEVICE_NOT_FOUND)
         return
 
-    result1 = await device.async_read_op_flags()
-    result2 = await device.async_read_ext_properties()
-    await devices.async_save(workdir=hass.config.config_dir)
-    if result1 != ResponseStatus.SUCCESS or result2 != ResponseStatus.SUCCESS:
-        connection.send_message(
-            websocket_api.error_message(
-                msg[ID], "load_failed", "properties not loaded from device"
-            )
-        )
-        return
+    await device.async_read_op_flags()
+    await device.async_read_ext_properties()
     connection.send_result(msg[ID])
 
 
