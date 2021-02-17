@@ -171,23 +171,6 @@ TRIGGER_SCENE_SCHEMA = vol.Schema(
 ADD_DEFAULT_LINKS_SCHEMA = vol.Schema({vol.Required(CONF_ENTITY_ID): cv.entity_id})
 
 
-ALDB_RECORD_SCHEMA = vol.Schema(
-    {
-        vol.Required("mem_addr"): int,
-        vol.Required("in_use"): bool,
-        vol.Required("group"): vol.Range(0, 255),
-        vol.Required("mode"): vol.In(["c", "C", "R", "r"]),
-        vol.Optional("highwater"): bool,
-        vol.Required("target"): str,
-        vol.Optional("target_name"): str,
-        vol.Required("data1"): vol.Range(0, 255),
-        vol.Required("data2"): vol.Range(0, 255),
-        vol.Required("data3"): vol.Range(0, 255),
-        vol.Optional("dirty"): bool,
-    }
-)
-
-
 def normalize_byte_entry_to_int(entry: Union[int, bytes, str]):
     """Format a hex entry value."""
     if isinstance(entry, int):
