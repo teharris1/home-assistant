@@ -40,6 +40,7 @@ async def async_device_name(dev_registry, address):
         device = devices[address]
         if device:
             return f"{device.description} ({device.model})"
+        print(f"Device {address} not found")
         return ""
     return compute_device_name(ha_device)
 
