@@ -1,9 +1,5 @@
 """Web socket API for Insteon devices."""
 
-import voluptuous as vol
-
-from homeassistant.components import websocket_api
-from homeassistant.core import callback
 from pyinsteon import devices
 from pyinsteon.constants import ALDBStatus
 from pyinsteon.topics import (
@@ -12,6 +8,10 @@ from pyinsteon.topics import (
     DEVICE_LINK_RESPONDER_CREATED,
 )
 from pyinsteon.utils import subscribe_topic, unsubscribe_topic
+import voluptuous as vol
+
+from homeassistant.components import websocket_api
+from homeassistant.core import callback
 
 from .device import (
     DEVICE_ADDRESS,
@@ -28,7 +28,7 @@ ALDB_RECORD_SCHEMA = vol.Schema(
         vol.Required("mem_addr"): int,
         vol.Required("in_use"): bool,
         vol.Required("group"): vol.Range(0, 255),
-        vol.Required("mode"): vol.In(["c", "C", "R", "r"]),
+        vol.Required("is_controller"): bool,
         vol.Optional("highwater"): bool,
         vol.Required("target"): str,
         vol.Optional("target_name"): str,
@@ -46,7 +46,7 @@ async def async_aldb_record_to_dict(dev_registry, record, dirty=False):
         {
             "mem_addr": record.mem_addr,
             "in_use": record.is_in_use,
-            "mode": "C" if record.is_controller else "R",
+            "is_controller": record.is_controller,
             "highwater": record.is_high_water_mark,
             "group": record.group,
             "target": str(record.target),
@@ -118,7 +118,7 @@ async def websocket_change_aldb_record(hass, connection, msg):
         mem_addr=record["mem_addr"],
         in_use=record["in_use"],
         group=record["group"],
-        controller=record["mode"].lower() == "c",
+        controller=record["is_controller"],
         target=record["target"],
         data1=record["data1"],
         data2=record["data2"],
@@ -146,7 +146,7 @@ async def websocket_create_aldb_record(hass, connection, msg):
     record = msg[ALDB_RECORD]
     device.aldb.add(
         group=record["group"],
-        controller=record["mode"].lower() == "c",
+        controller=record["is_controller"],
         target=record["target"],
         data1=record["data1"],
         data2=record["data2"],
