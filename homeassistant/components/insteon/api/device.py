@@ -1,9 +1,9 @@
 """API interface to get an Insteon device."""
 
+from pyinsteon import devices
 import voluptuous as vol
 
 from homeassistant.components import websocket_api
-from pyinsteon import devices
 
 from ..const import DOMAIN
 
@@ -40,7 +40,6 @@ async def async_device_name(dev_registry, address):
         device = devices[address]
         if device:
             return f"{device.description} ({device.model})"
-        print(f"Device {address} not found")
         return ""
     return compute_device_name(ha_device)
 
