@@ -50,13 +50,8 @@
         "x10_unit_6": 32,
         "ramp_rate_6": 0,
         "on_level_6": 0,
-<<<<<<< HEAD
         "on_mask_7": 128,
         "off_mask_7": 128,
-=======
-        "on_mask_7": 0,
-        "off_mask_7": 0,
->>>>>>> Add tests
         "x10_house_7": 32,
         "x10_unit_7": 32,
         "ramp_rate_7": 0,

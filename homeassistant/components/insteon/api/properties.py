@@ -11,7 +11,7 @@ from pyinsteon.extended_property import (
     ON_MASK,
     RAMP_RATE,
 )
-from pyinsteon.utils import ramp_rate_to_seconds
+from pyinsteon.utils import ramp_rate_to_seconds, seconds_to_ramp_rate
 import voluptuous as vol
 import voluptuous_serialize
 
@@ -45,13 +45,6 @@ def _bool_schema(name):
 
 def _byte_schema(name):
     return voluptuous_serialize.convert(vol.Schema({vol.Required(name): cv.byte}))[0]
-
-
-def _toggle_schema(name):
-    return voluptuous_serialize.convert(
-        vol.Schema({vol.Required(name): vol.In(TOGGLE_MODES_SCHEMA)}),
-        custom_serializer=cv.custom_serializer,
-    )[0]
 
 
 def _ramp_rate_schema(name):
@@ -107,16 +100,24 @@ def set_property(device, prop_name: str, value):
         device.operating_flags[prop_name].new_value = value
 
     elif prop_name == RAMP_RATE:
-        device.properties[prop_name].new_value = value
+        device.properties[prop_name].new_value = seconds_to_ramp_rate(value)
 
     elif prop_name.startswith(RADIO_BUTTON_GROUP_PROP):
-        device.set_radio_buttons(value)
+        buttons = [int(button) for button in value]
+        rb_groups = _calc_radio_button_groups(device)
+        curr_group = int(prop_name[len(RADIO_BUTTON_GROUP_PROP) :])
+        if len(rb_groups) > curr_group:
+            removed = [btn for btn in rb_groups[curr_group] if btn not in buttons]
+            if removed:
+                device.clear_radio_buttons(removed)
+        if buttons:
+            device.set_radio_buttons(buttons)
 
     elif prop_name.startswith(TOGGLE_PROP):
         button_name = prop_name[len(TOGGLE_PROP) :]
         for button in device.groups:
             if device.groups[button].name == button_name:
-                device.set_toggle_mode(button, value)
+                device.set_toggle_mode(button, int(value))
 
     else:
         device.properties[prop_name].new_value = value
@@ -143,7 +144,11 @@ def _get_toggle_properties(device):
         name = f"{TOGGLE_PROP}{device.groups[button].name}"
         value, modified = _toggle_button_value(toggle_prop, toggle_on_prop, button)
         props.append({"name": name, "value": value, "modified": modified})
-        schema[name] = {"name": name, **_toggle_schema(name)}
+        toggle_schema = vol.Schema({vol.Required(name): vol.In(TOGGLE_MODES_SCHEMA)})
+        toggle_schema_dict = voluptuous_serialize.convert(
+            toggle_schema, custom_serializer=cv.custom_serializer
+        )
+        schema[name] = toggle_schema_dict[0]
     return props, schema
 
 
@@ -197,6 +202,7 @@ def _get_radio_button_properties(device):
         on_mask = device.properties[f"{ON_MASK}{button_str}"]
         off_mask = device.properties[f"{OFF_MASK}{button_str}"]
         modified = on_mask.is_dirty or off_mask.is_dirty
+
         props.append(
             {
                 "name": name,
@@ -204,20 +210,23 @@ def _get_radio_button_properties(device):
                 "value": rb_group,
             }
         )
-        selections = [
-            button for button in chain.from_iterable([rb_group, remaining_buttons])
-        ]
-        selections.sort()
-        schema[name] = {
-            "name": name,
-            "required": False,
-            "type": "multi_select",
-            "options": [[button, device.groups[button].name] for button in selections],
+
+        options = {
+            button: device.groups[button].name
+            for button in chain.from_iterable([rb_group, remaining_buttons])
         }
+        rb_schema = vol.Schema({vol.Optional(name): cv.multi_select(options)})
+
+        rb_schema_dict = voluptuous_serialize.convert(
+            rb_schema, custom_serializer=cv.custom_serializer
+        )
+        schema[name] = rb_schema_dict[0]
+
         index += 1
 
     if len(remaining_buttons) > 1:
         name = f"{RADIO_BUTTON_GROUP_PROP}{index}"
+
         props.append(
             {
                 "name": name,
@@ -225,14 +234,14 @@ def _get_radio_button_properties(device):
                 "value": [],
             }
         )
-        schema[name] = {
-            "name": name,
-            "required": False,
-            "type": "multi_select",
-            "options": [
-                [button, device.groups[button].name] for button in remaining_buttons
-            ],
-        }
+
+        options = {button: device.groups[button].name for button in remaining_buttons}
+        rb_schema = vol.Schema({vol.Optional(name): cv.multi_select(options)})
+
+        rb_schema_dict = voluptuous_serialize.convert(
+            rb_schema, custom_serializer=cv.custom_serializer
+        )
+        schema[name] = rb_schema_dict[0]
 
     return props, schema
 
