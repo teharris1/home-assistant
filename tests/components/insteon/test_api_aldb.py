@@ -3,6 +3,10 @@
 import json
 from unittest.mock import patch
 
+from pyinsteon import pub
+from pyinsteon.address import Address
+from pyinsteon.constants import ALDBStatus
+from pyinsteon.topics import ALDB_STATUS_CHANGED, DEVICE_LINK_CONTROLLER_CREATED
 import pytest
 
 from homeassistant.components import insteon
@@ -14,10 +18,6 @@ from homeassistant.components.insteon.api.aldb import (
     TYPE,
 )
 from homeassistant.components.insteon.api.device import INSTEON_DEVICE_NOT_FOUND
-from pyinsteon import pub
-from pyinsteon.address import Address
-from pyinsteon.constants import ALDBStatus
-from pyinsteon.topics import ALDB_STATUS_CHANGED, DEVICE_LINK_CONTROLLER_CREATED
 
 from .mock_devices import MockDevices
 
@@ -43,7 +43,7 @@ async def _setup(hass, hass_ws_client, aldb_data):
 def _compare_records(aldb_rec, dict_rec):
     """Compare a record in the ALDB to the dictionary record."""
     assert aldb_rec.is_in_use == dict_rec["in_use"]
-    assert aldb_rec.is_controller == (dict_rec["mode"] == "C")
+    assert aldb_rec.is_controller == (dict_rec["is_controller"])
     assert not aldb_rec.is_high_water_mark
     assert aldb_rec.group == dict_rec["group"]
     assert aldb_rec.target == Address(dict_rec["target"])
@@ -57,7 +57,7 @@ def _aldb_dict(mem_addr):
     return {
         "mem_addr": mem_addr,
         "in_use": True,
-        "mode": "C",
+        "is_controller": True,
         "highwater": False,
         "group": 100,
         "target": "111111",
@@ -169,7 +169,7 @@ async def test_reset_aldb(hass, hass_ws_client, aldb_data):
         mem_addr=record["mem_addr"],
         in_use=record["in_use"],
         group=record["group"],
-        controller=record["mode"].lower() == "c",
+        controller=record["is_controller"],
         target=record["target"],
         data1=record["data1"],
         data2=record["data2"],
