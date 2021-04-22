@@ -2,7 +2,7 @@
 from unittest.mock import AsyncMock, MagicMock
 
 from pyinsteon.address import Address
-from pyinsteon.constants import ALDBStatus
+from pyinsteon.constants import ALDBStatus, ResponseStatus
 from pyinsteon.device_types import (
     DimmableLightingControl_KeypadLinc_8,
     GeneralController,
@@ -72,15 +72,37 @@ class MockDevices:
                 device.aldb.async_write = AsyncMock()
                 device.aldb.async_load = AsyncMock()
                 device.async_add_default_links = AsyncMock()
-                device.async_read_op_flags = AsyncMock()
-                device.async_read_ext_properties = AsyncMock()
-                device.async_write_op_flags = AsyncMock()
-                device.async_write_ext_properties = AsyncMock()
+                device.async_read_op_flags = AsyncMock(
+                    return_value=ResponseStatus.SUCCESS
+                )
+                device.async_read_ext_properties = AsyncMock(
+                    return_value=ResponseStatus.SUCCESS
+                )
+                device.async_write_op_flags = AsyncMock(
+                    return_value=ResponseStatus.SUCCESS
+                )
+                device.async_write_ext_properties = AsyncMock(
+                    return_value=ResponseStatus.SUCCESS
+                )
 
             for device in [self._devices[addr] for addr in [addr2, addr3]]:
                 device.async_status = AsyncMock()
             self._devices[addr1].async_status = AsyncMock(side_effect=AttributeError)
             self._devices[addr0].aldb.async_load = AsyncMock()
+
+            self._devices[addr2].async_read_op_flags = AsyncMock(
+                return_value=ResponseStatus.FAILURE
+            )
+            self._devices[addr2].async_read_ext_properties = AsyncMock(
+                return_value=ResponseStatus.FAILURE
+            )
+            self._devices[addr2].async_write_op_flags = AsyncMock(
+                return_value=ResponseStatus.FAILURE
+            )
+            self._devices[addr2].async_write_ext_properties = AsyncMock(
+                return_value=ResponseStatus.FAILURE
+            )
+
             self.modem = self._devices[addr0]
 
     def fill_aldb(self, address, records):
