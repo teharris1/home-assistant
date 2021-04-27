@@ -2,6 +2,8 @@
 import asyncio
 from unittest.mock import patch
 
+from pyinsteon.address import Address
+
 from homeassistant.components import insteon
 from homeassistant.components.insteon.const import (
     CONF_CAT,
@@ -23,7 +25,6 @@ from homeassistant.const import (
 )
 from homeassistant.core import HomeAssistant
 from homeassistant.setup import async_setup_component
-from pyinsteon.address import Address
 
 from .const import (
     MOCK_ADDRESS,
@@ -42,16 +43,6 @@ from .mock_connection import mock_failed_connection, mock_successful_connection
 from .mock_devices import MockDevices
 
 from tests.common import MockConfigEntry
-
-
-async def mock_successful_connection(*args, **kwargs):
-    """Return a successful connection."""
-    return True
-
-
-async def mock_failed_connection(*args, **kwargs):
-    """Return a failed connection."""
-    raise ConnectionError("Connection failed")
 
 
 async def test_setup_entry(hass: HomeAssistant):
