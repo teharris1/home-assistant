@@ -44,16 +44,6 @@ from .mock_devices import MockDevices
 from tests.common import MockConfigEntry
 
 
-async def mock_successful_connection(*args, **kwargs):
-    """Return a successful connection."""
-    return True
-
-
-async def mock_failed_connection(*args, **kwargs):
-    """Return a failed connection."""
-    raise ConnectionError("Connection failed")
-
-
 async def test_setup_entry(hass: HomeAssistant):
     """Test setting up the entry."""
     config_entry = MockConfigEntry(domain=DOMAIN, data=MOCK_USER_INPUT_PLM)
