@@ -188,7 +188,7 @@ def _get_radio_button_properties(device):
     index = 0
     remaining_buttons = []
 
-    buttons_in_groups = [button for button in chain.from_iterable(rb_groups)]
+    buttons_in_groups = list(chain.from_iterable(rb_groups))
 
     # Identify buttons not belonging to any group
     for button in device.groups:
@@ -250,7 +250,7 @@ def _calc_radio_button_groups(device):
     """Return existing radio button groups."""
     rb_groups = []
     for button in device.groups:
-        if button not in [b for b in chain.from_iterable(rb_groups)]:
+        if button not in list(chain.from_iterable(rb_groups)):
             button_str = "" if button == 1 else f"_{button}"
             on_mask, _ = _get_usable_value(device.properties[f"{ON_MASK}{button_str}"])
             if on_mask != 0:

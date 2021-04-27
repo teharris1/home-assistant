@@ -123,17 +123,17 @@ async def test_no_insteon_device(hass, hass_ws_client):
 async def test_get_ha_device_name(hass, hass_ws_client):
     """Test getting the HA device name from an Insteon address."""
 
-    _, devices, _, dr = await _async_setup(hass, hass_ws_client)
+    _, devices, _, device_reg = await _async_setup(hass, hass_ws_client)
 
     with patch.object(insteon.api.device, "devices", devices):
         # Test a real HA and Insteon device
-        name = await async_device_name(dr, "11.11.11")
+        name = await async_device_name(device_reg, "11.11.11")
         assert name == "Device 11.11.11"
 
         # Test no HA device but a real Insteon device
-        name = await async_device_name(dr, "22.22.22")
+        name = await async_device_name(device_reg, "22.22.22")
         assert name == "Device 22.22.22 (2)"
 
         # Test no HA or Insteon device
-        name = await async_device_name(dr, "BB.BB.BB")
+        name = await async_device_name(device_reg, "BB.BB.BB")
         assert name == ""

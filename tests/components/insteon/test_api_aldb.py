@@ -5,7 +5,6 @@ from unittest.mock import patch
 
 from pyinsteon import pub
 from pyinsteon.address import Address
-from pyinsteon.constants import ALDBStatus
 from pyinsteon.topics import ALDB_STATUS_CHANGED, DEVICE_LINK_CONTROLLER_CREATED
 import pytest
 
@@ -228,16 +227,6 @@ async def test_notify_on_aldb_status(hass, hass_ws_client, aldb_data):
         msg = await ws_client.receive_json()
         assert msg["event"]["type"] == "status_changed"
         assert not msg["event"]["is_loading"]
-
-        devices["33.33.33"].aldb._update_status(ALDBStatus.LOADING)
-        msg = await ws_client.receive_json()
-        assert msg["event"]["type"] == "status_changed"
-        assert msg["event"]["is_loading"]
-
-        devices["33.33.33"].aldb._update_status(ALDBStatus.LOADING)
-        msg = await ws_client.receive_json()
-        assert msg["event"]["type"] == "status_changed"
-        assert msg["event"]["is_loading"]
 
 
 async def test_notify_on_aldb_record_added(hass, hass_ws_client, aldb_data):

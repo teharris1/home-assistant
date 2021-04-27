@@ -3,8 +3,9 @@ from __future__ import annotations
 
 from binascii import Error as HexError, unhexlify
 import re
-from typing import Dict, Union
 
+from pyinsteon.address import Address
+from pyinsteon.constants import HC_LOOKUP
 import voluptuous as vol
 
 from homeassistant.const import (
@@ -19,8 +20,6 @@ from homeassistant.const import (
     ENTITY_MATCH_ALL,
 )
 import homeassistant.helpers.config_validation as cv
-from pyinsteon.address import Address
-from pyinsteon.constants import HC_LOOKUP
 
 from .const import (
     CONF_CAT,
@@ -171,7 +170,7 @@ TRIGGER_SCENE_SCHEMA = vol.Schema(
 ADD_DEFAULT_LINKS_SCHEMA = vol.Schema({vol.Required(CONF_ENTITY_ID): cv.entity_id})
 
 
-def normalize_byte_entry_to_int(entry: Union[int, bytes, str]):
+def normalize_byte_entry_to_int(entry: tuple[int, bytes, str]):
     """Format a hex entry value."""
     if isinstance(entry, int):
         if entry in range(0, 256):
