@@ -110,7 +110,7 @@ jobs:
 
       - name: Download nightly wheels of frontend
         if: needs.init.outputs.channel == 'dev'
-        uses: dawidd6/action-download-artifact@v2
+        uses: dawidd6/action-download-artifact@v6
         with:
           github_token: ${{secrets.GITHUB_TOKEN}}
           repo: home-assistant/frontend
@@ -121,7 +121,7 @@ jobs:
 
       - name: Download nightly wheels of intents
         if: needs.init.outputs.channel == 'dev'
-        uses: dawidd6/action-download-artifact@v2
+        uses: dawidd6/action-download-artifact@v6
         with:
           github_token: ${{secrets.GITHUB_TOKEN}}
           repo: home-assistant/intents-package
